@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>簡易交友平台（網頁版）</title>
+  <style>
+    :root{--bg:#0f1724;--card:#111827;--muted:#9CA3AF;--accent:#06b6d4;--green:#10b981}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,#071024 0%,#071b2a 100%);color:#e6eef6}
+    .app{display:flex;height:100vh;gap:18px;padding:18px}
+    .sidebar{width:280px;background:rgba(255,255,255,0.03);border-radius:12px;padding:12px;display:flex;flex-direction:column}
+    .brand{display:flex;align-items:center;gap:10px;padding:8px}
+    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(90deg,var(--accent),#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:700}
+    .search{margin:8px 0}
+    .search input{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    .people{overflow:auto;margin-top:8px}
+    .person{display:flex;gap:10px;align-items:center;padding:10px;border-radius:10px;cursor:pointer}
+    .person:hover{background:rgba(255,255,255,0.02)}
+    .avatar{width:48px;height:48px;border-radius:50%;background:#0ea5a0;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .main{flex:1;display:flex;flex-direction:column}
+    .chat-header{height:72px;display:flex;align-items:center;gap:12px;padding:12px;background:rgba(255,255,255,0.02);border-radius:12px}
+    .chat-window{flex:1;overflow:auto;padding:18px;margin-top:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border-radius:12px}
+    .msg{max-width:65%;padding:10px;border-radius:12px;margin:8px 0;display:inline-block}
+    .msg.me{background:linear-gradient(90deg,var(--accent),#7c3aed);color:#012;align-self:flex-end;border-bottom-right-radius:4px}
+    .msg.them{background:rgba(255,255,255,0.03)}
+    .composer{display:flex;gap:8px;align-items:center;padding:12px;margin-top:12px;background:rgba(255,255,255,0.02);border-radius:12px}
+    .composer textarea{flex:1;height:48px;resize:none;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .btn{padding:10px 12px;border-radius:10px;border:none;cursor:pointer;background:var(--accent);color:#012;font-weight:600}
+    .icon-btn{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .attachments{display:flex;gap:8px;align-items:center}
+    .image-preview{max-width:140px;max-height:120px;border-radius:8px;margin-left:8px;object-fit:cover}
+    .small{font-size:12px;color:var(--muted)}
+    footer.note{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+    @media (max-width:900px){.sidebar{display:none}.app{padding:10px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">交</div>
+        <div>
+          <div style="font-weight:700">小配對</div>
+          <div class="small">語音・文字・圖片</div>
+        </div>
+      </div>
+      <div class="search"><input id="search" placeholder="搜尋使用者..."/></div>
+      <div class="people" id="peopleList">
+        <!-- sample users injected by JS -->
+      </div>
+      <div style="margin-top:auto">
+        <div class="small">狀態：線上 12</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="chat-header" id="chatHeader">
+        <div class="avatar" id="chatAvatar">A</div>
+        <div style="flex:1">
+          <div id="chatName" style="font-weight:700">選取一位聊天</div>
+          <div class="small" id="chatStatus">離線</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="icon-btn" id="callBtn">📞 語音</button>
+          <button class="icon-btn" id="videoBtn">🎥 視訊</button>
+        </div>
+      </div>
+
+      <div class="chat-window" id="chatWindow">
+        <div class="small">選擇左側使用者或建立新對話。</div>
+      </div>
+
+      <div class="composer">
+        <div class="attachments">
+          <input type="file" id="imgInput" accept="image/*" style="display:none" />
+          <button class="icon-btn" id="imgBtn">🖼 圖片</button>
+          <button class="icon-btn" id="voiceBtn">🎙 錄音</button>
+        </div>
+        <textarea id="textIn" placeholder="輸入訊息... (支援文字)"></textarea>
+        <button class="btn" id="sendBtn">傳送</button>
+      </div>
+      <div class="small" style="margin-top:8px">提示：錄音功能需瀏覽器授權麥克風，僅示範使用。</div>
+    </main>
+  </div>
+
+  <script>
+    // 簡易資料（範例使用者）
+    const users = [
+      {id:1,name:'阿明',avatar:'阿',status:'線上',last:'嗨！你今天好嗎？'},
+      {id:2,name:'小美',avatar:'美',status:'離線',last:'剛剛在看書'},
+      {id:3,name:'Kevin',avatar:'K',status:'線上',last:'有好吃的推薦嗎？'}
+    ];
+
+    const peopleList = document.getElementById('peopleList');
+    const chatName = document.getElementById('chatName');
+    const chatAvatar = document.getElementById('chatAvatar');
+    const chatStatus = document.getElementById('chatStatus');
+    const chatWindow = document.getElementById('chatWindow');
+    const textIn = document.getElementById('textIn');
+    const imgBtn = document.getElementById('imgBtn');
+    const imgInput = document.getElementById('imgInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    let currentUser = null;
+
+    function renderUsers(list){
+      peopleList.innerHTML='';
+      list.forEach(u=>{
+        const el = document.createElement('div');
+        el.className='person';
+        el.innerHTML = `<div class="avatar">${u.avatar}</div><div style="flex:1"><div style="font-weight:700">${u.name}</div><div class="small">${u.last}</div></div><div class="small">${u.status}</div>`;
+        el.onclick = ()=>selectUser(u);
+        peopleList.appendChild(el);
+      })
+    }
+
+    function selectUser(u){
+      currentUser = u;
+      chatName.textContent = u.name;
+      chatAvatar.textContent = u.avatar;
+      chatStatus.textContent = u.status;
+      chatWindow.innerHTML = '';
+      appendMessage({from:'them',type:'text',text:u.last});
+    }
+
+    function appendMessage(msg){
+      const d = document.createElement('div');
+      d.className = 'msg ' + (msg.from==='me'?'me':'them');
+      if(msg.type==='text') d.textContent = msg.text;
+      else if(msg.type==='image'){
+        const img = document.createElement('img'); img.src = msg.src; img.className='image-preview'; d.appendChild(img);
+      } else if(msg.type==='voice'){
+        const audio = document.createElement('audio'); audio.controls=true; audio.src = msg.src; d.appendChild(audio);
+      }
+      chatWindow.appendChild(d);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    sendBtn.onclick = ()=>{
+      if(!currentUser){alert('請先選擇使用者');return}
+      const text = textIn.value.trim();
+      if(text){appendMessage({from:'me',type:'text',text}); textIn.value='';}
+    }
+
+    imgBtn.onclick = ()=> imgInput.click();
+    imgInput.onchange = (e)=>{
+      const f = e.target.files[0];
+      if(!f) return;
+      const url = URL.createObjectURL(f);
+      appendMessage({from:'me',type:'image',src:url});
+    }
+
+    // 錄音（簡易示範）
+    let mediaRecorder, audioChunks=[];
+    const voiceBtn = document.getElementById('voiceBtn');
+
+    voiceBtn.onclick = async ()=>{
+      if(!currentUser){alert('請先選擇使用者');return}
+      if(!navigator.mediaDevices) {alert('此瀏覽器不支援錄音');return}
+      if(!mediaRecorder || mediaRecorder.state === 'inactive'){
+        try{
+          const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks=[];
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.onstop = ()=>{
+            const blob = new Blob(audioChunks,{type:'audio/webm'});
+            const url = URL.createObjectURL(blob);
+            appendMessage({from:'me',type:'voice',src:url});
+          }
+          mediaRecorder.start();
+          voiceBtn.textContent = '停止錄音';
+          setTimeout(()=>{ // 自動停止示範：10秒
+            if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop(); voiceBtn.textContent='🎙 錄音';
+          },10000);
+        }catch(err){alert('無法取得麥克風權限')}
+      } else {
+        mediaRecorder.stop();
+        voiceBtn.textContent='🎙 錄音';
+      }
+    }
+
+    // 搜尋範例
+    document.getElementById('search').addEventListener('input',e=>{
+      const q = e.target.value.toLowerCase();
+      renderUsers(users.filter(u=>u.name.toLowerCase().includes(q)));
+    })
+
+    // 初始化
+    renderUsers(users);
+
+    // 模擬快速聊天提示按鈕（可擴充）
+    document.getElementById('callBtn').onclick = ()=>alert('語音通話功能需後端與 WebRTC 支援，本示範僅 UI 提示');
+    document.getElementById('videoBtn').onclick = ()=>alert('視訊功能需後端與 WebRTC 支援，本示範僅 UI 提示');
+
+  </script>
+</body>
+</html>
